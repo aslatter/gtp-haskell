@@ -49,15 +49,31 @@ openConnectionRaw rc = do
   -- we have a thread which sends requests and
   -- a thread which receives responses.
   -- they communicate with a channel of sent requests.
+
+
+  -- future work: the body of this work could be
+  -- in a parent 'ResourceT' block which registers
+  -- a cleanup function for the channels.
+
   -- respQueue :: Chan PendingResponse
   respQueue <- newChan
   respTid <- forkIO $ runResourceT $
-               -- register close action to fill MVars with errors?
-               rcSource rc $= resultConduit $$ resultSink respQueue
-  reqTid <- forkIO undefined
+             -- register close action to fill MVars with errors?
+             rcSource rc $= resultConduit $$ resultSink respQueue
+
+  -- queue for requests the client has asked to make
+  reqQueue <- newChan
+  reqTid <- forkIO $ forever $ do
+              -- register close action to fill MVars with errors?
+              (reqBytes, respVar) <- readChan reqQueue
+              -- catch err, signal error to caller?
+              rcSendAll rc reqBytes
+              writeChan resqQueue respVar
+
   isClosed <- newIORef False
-  return $ C reqTid respTid isClosed respQueue
-  
+
+  return $ C reqTid respTid isClosed reqQueue
+
 rcSource :: RawConnection -> Source (ResourceT IO) B.ByteString
 rcSource rc =
     sourceIO
