@@ -1,6 +1,10 @@
 
 module Types
 
+-- | Caller is responsible for parsing on Right
+type PendingResponse = MVar (Either GtpException [[B.ByteString]])
+type PendingRequest = (B.ByteString, PendingResponse)
+
 data Connection
     = C
       { reqTid  :: ThreadId, -- request loop
@@ -8,10 +12,6 @@ data Connection
         isClosed :: IORef Bool,
         reqQueue :: Chan PendingRequest
       }
-
--- | Caller is responsible for parsing on Right
-type PendingResponse = MVar (Either GtpException [[B.ByteString]])
-type PendingRequest = (B.ByteString, PendingResponse)
 
 -- | A less raw view of results coming back from the
 -- engine

@@ -88,27 +88,5 @@ showboard :: Connection -> IO [[B.ByteString]]
 showboard = undefined
 
 
-resultConduit :: Monad m => Conduit B.ByteString m ResultFrame
-resultConduit = C.sequence (sinkParser resultParser)
-
--- | This is a weird sink - we sink the result frames into a queue of
--- MVars waiting for results. This is where we assume:
---  - The server delivers results in FIFO order
---  - The server delivers exactly one response per request
-resultSink :: Chan PendingResponse -> Sink ResultFrame IO ()
-resultSink responseQ =
-    sinkState
-      () -- no pure state
-      (\_ frame -> do
-         -- pull an mvar from the queue, write to it
-         mvar <- readChan responseQ
-         putMVar mvar $
-           case frame of
-             Error _ wds = Left $ toGtpEx $ B8.unwords wds
-             Response _ bytes = Right bytes
-         return $ StateProcessing ()
-       )
-      (\() -> return ()) -- no close
-           
 
 
